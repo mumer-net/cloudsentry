@@ -1,6 +1,6 @@
 [project]
 name = "cloudsentry"
-version = "0.1.0"
+version = "0.2.0"
 description = "Audits AWS VPC network security against seven CIS AWS Foundations controls"
 readme = "README.md"
 requires-python = ">=3.12"
