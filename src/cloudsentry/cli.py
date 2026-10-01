@@ -1,9 +1,10 @@
-"""CloudSentry command line: scan and exposure."""
+"""CloudSentry command line: scan, exposure, and history."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -14,7 +15,7 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-from cloudsentry import collect_aws, collect_plan, exposure, probe, rules
+from cloudsentry import collect_aws, collect_plan, exposure, probe, rules, store
 from cloudsentry.model import Inventory
 
 console = Console()
@@ -95,7 +96,19 @@ def run_scan(args) -> int:
         ok = _compare_with_faults(inventories, findings, args.markdown)
     if args.fail_on and any(SEVERITY_RANK[f.severity] >= SEVERITY_RANK[args.fail_on] for f in findings):
         ok = False
+    if args.db:
+        _save_history(args.db, by_source)
     return 0 if ok else 1
+
+
+def _save_history(url: str, by_source: dict[str, list[rules.Finding]]) -> None:
+    with store.connect(url) as conn:
+        for source, found in by_source.items():
+            scan_id = store.save(conn, source, found)
+            diff = store.changes(conn, source)
+            _say(
+                f"Saved scan {scan_id} of {source}: {len(diff['new'])} new, {len(diff['fixed'])} fixed", markdown=False
+            )
 
 
 def _add_scan(sub) -> None:
@@ -109,6 +122,7 @@ def _add_scan(sub) -> None:
     p.add_argument("--markdown", action="store_true", help="print a Markdown table (for CI summaries)")
     p.add_argument("--expect", action="store_true", help="compare findings with the lab's Fault tags")
     p.add_argument("--fail-on", choices=list(SEVERITY_RANK), help="exit 1 if any finding is this severe or worse")
+    p.add_argument("--db", default=os.environ.get("CLOUDSENTRY_DB"), help="PostgreSQL URL to save the scan to")
     p.set_defaults(func=run_scan)
 
 
@@ -211,7 +225,51 @@ def _add_exposure(sub) -> None:
     p.set_defaults(func=run_exposure)
 
 
-COMMANDS = [_add_scan, _add_exposure]
+def run_history(args) -> int:
+    if not args.db:
+        _say("Set CLOUDSENTRY_DB or pass --db.", False, "red")
+        return 2
+    with store.connect(args.db) as conn:
+        scans = store.trend(conn, args.limit)
+        if not scans:
+            _say("No scans saved yet.", False)
+            return 0
+        table = Table(title="Recent scans")
+        for column in ("Scan", "Source", "When (UTC)", "High", "Medium", "Low"):
+            table.add_column(column)
+        for s in scans:
+            when = s["scanned_at"].astimezone(UTC).strftime("%Y-%m-%d %H:%M")
+            table.add_row(str(s["id"]), escape(s["source"]), when, str(s["high"]), str(s["medium"]), str(s["low"]))
+        console.print(table)
+
+        source = args.source or store.latest_source(conn)
+        diff = store.changes(conn, source)
+        _say(f"Since the previous scan of {source}: {len(diff['new'])} new, {len(diff['fixed'])} fixed", False)
+        for label in ("new", "fixed"):
+            for f in diff[label]:
+                _say(f"  {label}: {f['control']} on {f['resource']}", False)
+
+        still_open = store.open_findings(conn, source)
+        if still_open:
+            table = Table(title=f"Open in {source}")
+            for column in ("Control", "Severity", "Resource", "Open since (UTC)"):
+                table.add_column(column)
+            for f in still_open:
+                since = f["first_seen"].astimezone(UTC).strftime("%Y-%m-%d %H:%M")
+                table.add_row(f["control"], f["severity"], escape(f["resource"]), since)
+            console.print(table)
+    return 0
+
+
+def _add_history(sub) -> None:
+    p = sub.add_parser("history", help="recent scans, what changed, and how long findings have been open")
+    p.add_argument("--db", default=os.environ.get("CLOUDSENTRY_DB"), help="PostgreSQL URL (default: $CLOUDSENTRY_DB)")
+    p.add_argument("--source", help="for example aws:us-east-1 (default: the latest scan's source)")
+    p.add_argument("--limit", type=int, default=10, help="how many recent scans to list")
+    p.set_defaults(func=run_history)
+
+
+COMMANDS = [_add_scan, _add_exposure, _add_history]
 
 
 def main(argv: list[str] | None = None) -> int:

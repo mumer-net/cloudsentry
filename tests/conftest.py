@@ -6,6 +6,12 @@ EVERYTHING = AclEntry(100, False, True, "all", "0.0.0.0/0")
 EVERYTHING_OUT = AclEntry(100, True, True, "all", "0.0.0.0/0")
 
 
+@pytest.fixture(autouse=True)
+def no_history_db(monkeypatch):
+    """Keep test scans out of a real history database when CLOUDSENTRY_DB is set in the shell."""
+    monkeypatch.delenv("CLOUDSENTRY_DB", raising=False)
+
+
 def world(port: int | None) -> Permission:
     if port is None:
         return Permission("all", None, None, "0.0.0.0/0")
