@@ -21,6 +21,12 @@ services:
       CLOUDSENTRY_DB: postgresql://cloudsentry:${POSTGRES_PASSWORD}@db:5432/cloudsentry
     ports:
       - "127.0.0.1:8000:8000"
+    # Without this, --wait counts the API as ready before uvicorn is listening.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
     depends_on:
       db:
         condition: service_healthy
