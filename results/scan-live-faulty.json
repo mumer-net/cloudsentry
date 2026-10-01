@@ -1,0 +1,75 @@
+{
+  "sources": "aws:us-east-1",
+  "findings": [
+    {
+      "control": "CIS 5.2",
+      "resource": "acl-0af46e1d72222d852",
+      "region": "us-east-1",
+      "detail": "inbound from 0.0.0.0/0 allowed on port 22, 3389",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.2",
+      "resource": "acl-0d770d9af825e702d",
+      "region": "us-east-1",
+      "detail": "inbound from 0.0.0.0/0 allowed on port 22, 3389",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.3",
+      "resource": "sg-032c407c8cd9d4145",
+      "region": "us-east-1",
+      "detail": "cloudsentry-ssh-world allows 0.0.0.0/0 on port 22",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.3",
+      "resource": "sg-09be4969aaa0583b8",
+      "region": "us-east-1",
+      "detail": "cloudsentry-all-world allows 0.0.0.0/0 on port 22, 3389",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.3",
+      "resource": "sg-0bf892ef5b8fb73ed",
+      "region": "us-east-1",
+      "detail": "cloudsentry-rdp-world allows 0.0.0.0/0 on port 3389",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.4",
+      "resource": "sg-072d9a294a62a8285",
+      "region": "us-east-1",
+      "detail": "cloudsentry-ssh-v6-world allows ::/0 on port 22",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 3.7",
+      "resource": "vpc-0eab9928ee5baa23f",
+      "region": "us-east-1",
+      "detail": "no flow log capturing rejected traffic",
+      "severity": "medium"
+    },
+    {
+      "control": "CIS 5.5",
+      "resource": "sg-0425bfa0be911f518",
+      "region": "us-east-1",
+      "detail": "default group in vpc-0eab9928ee5baa23f has 1 inbound, 1 outbound rules",
+      "severity": "medium"
+    },
+    {
+      "control": "CIS 5.7",
+      "resource": "i-0710f14fb4a52ccb1",
+      "region": "us-east-1",
+      "detail": "cloudsentry-restricted still accepts IMDSv1",
+      "severity": "medium"
+    },
+    {
+      "control": "CIS 5.6",
+      "resource": "rtb-05da573e0c026ce9b",
+      "region": "us-east-1",
+      "detail": "routes 10.30.0.0/16 over pcx-04f127d70bde6e6ad, all of vpc-0eab9928ee5baa23f",
+      "severity": "low"
+    }
+  ]
+}

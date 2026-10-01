@@ -1,0 +1,75 @@
+{
+  "sources": "plan:plan-faults.json",
+  "findings": [
+    {
+      "control": "CIS 5.2",
+      "resource": "aws_network_acl.noreturn[0]",
+      "region": "us-east-1",
+      "detail": "inbound from 0.0.0.0/0 allowed on port 22, 3389",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.2",
+      "resource": "aws_network_acl.wideopen[0]",
+      "region": "us-east-1",
+      "detail": "inbound from 0.0.0.0/0 allowed on port 22, 3389",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.3",
+      "resource": "aws_security_group.world[\"all\"]",
+      "region": "us-east-1",
+      "detail": "cloudsentry-all-world allows 0.0.0.0/0 on port 22, 3389",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.3",
+      "resource": "aws_security_group.world[\"rdp\"]",
+      "region": "us-east-1",
+      "detail": "cloudsentry-rdp-world allows 0.0.0.0/0 on port 3389",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.3",
+      "resource": "aws_security_group.world[\"ssh\"]",
+      "region": "us-east-1",
+      "detail": "cloudsentry-ssh-world allows 0.0.0.0/0 on port 22",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 5.4",
+      "resource": "aws_security_group.world[\"ssh-v6\"]",
+      "region": "us-east-1",
+      "detail": "cloudsentry-ssh-v6-world allows ::/0 on port 22",
+      "severity": "high"
+    },
+    {
+      "control": "CIS 3.7",
+      "resource": "aws_vpc.b",
+      "region": "us-east-1",
+      "detail": "no flow log capturing rejected traffic",
+      "severity": "medium"
+    },
+    {
+      "control": "CIS 5.5",
+      "resource": "aws_default_security_group.b",
+      "region": "us-east-1",
+      "detail": "default group in aws_vpc.b has 1 inbound, 1 outbound rules",
+      "severity": "medium"
+    },
+    {
+      "control": "CIS 5.7",
+      "resource": "aws_instance.scenario[\"restricted\"]",
+      "region": "us-east-1",
+      "detail": "cloudsentry-restricted still accepts IMDSv1",
+      "severity": "medium"
+    },
+    {
+      "control": "CIS 5.6",
+      "resource": "aws_route_table.private",
+      "region": "us-east-1",
+      "detail": "routes 10.30.0.0/16 over aws_vpc_peering_connection.ab, all of aws_vpc.b",
+      "severity": "low"
+    }
+  ]
+}
