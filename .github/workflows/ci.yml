@@ -1,0 +1,50 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Install
+        run: uv sync --locked
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Unit tests
+        run: uv run pytest -q
+
+  plan-gate:
+    runs-on: ubuntu-latest
+    env:
+      # Fake credentials: the lab is planned with offline=true, so nothing reaches AWS.
+      AWS_ACCESS_KEY_ID: offline
+      AWS_SECRET_ACCESS_KEY: offline
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.4
+          terraform_wrapper: false
+      - name: Format and validate
+        working-directory: lab
+        run: |
+          terraform fmt -check
+          terraform init -input=false -backend=false
+          terraform validate
+      - name: Plan both modes
+        working-directory: lab
+        run: |
+          terraform plan -input=false -var offline=true -var ami_id=ami-0123456789abcdef0 -var faults=false -out clean.tfplan
+          terraform show -json clean.tfplan > clean.json
+          terraform plan -input=false -var offline=true -var ami_id=ami-0123456789abcdef0 -var faults=true -out faults.tfplan
+          terraform show -json faults.tfplan > faults.json
+      - name: The clean plan passes
+        run: uv run cloudsentry scan --plan lab/clean.json --fail-on low
+      - name: Every seeded fault is caught before apply
+        shell: bash  # enables pipefail, so a missed fault fails the job
+        run: uv run cloudsentry scan --plan lab/faults.json --expect --markdown | tee -a "$GITHUB_STEP_SUMMARY"
