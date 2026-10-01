@@ -1,0 +1,148 @@
+{
+  "measured_at": "2026-10-01T18:27Z",
+  "region": "us-east-1",
+  "pairs": [
+    {
+      "instance": "cloudsentry-all-open",
+      "port": 22,
+      "naive": true,
+      "reachable": true,
+      "blocked_by": null,
+      "probe": true
+    },
+    {
+      "instance": "cloudsentry-all-open",
+      "port": 3389,
+      "naive": true,
+      "reachable": true,
+      "blocked_by": null,
+      "probe": true
+    },
+    {
+      "instance": "cloudsentry-nacl-deny",
+      "port": 22,
+      "naive": true,
+      "reachable": false,
+      "blocked_by": "network ACL inbound rule 90",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-nacl-deny",
+      "port": 3389,
+      "naive": false,
+      "reachable": false,
+      "blocked_by": "network ACL inbound rule 95",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-nacl-noreturn",
+      "port": 22,
+      "naive": true,
+      "reachable": false,
+      "blocked_by": "network ACL outbound (no return path)",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-nacl-noreturn",
+      "port": 3389,
+      "naive": false,
+      "reachable": false,
+      "blocked_by": "security group",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-no-route",
+      "port": 22,
+      "naive": true,
+      "reachable": false,
+      "blocked_by": "no route to an internet gateway",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-no-route",
+      "port": 3389,
+      "naive": false,
+      "reachable": false,
+      "blocked_by": "security group",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-open-rdp",
+      "port": 22,
+      "naive": false,
+      "reachable": false,
+      "blocked_by": "security group",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-open-rdp",
+      "port": 3389,
+      "naive": true,
+      "reachable": true,
+      "blocked_by": null,
+      "probe": true
+    },
+    {
+      "instance": "cloudsentry-open-ssh",
+      "port": 22,
+      "naive": true,
+      "reachable": true,
+      "blocked_by": null,
+      "probe": true
+    },
+    {
+      "instance": "cloudsentry-open-ssh",
+      "port": 3389,
+      "naive": false,
+      "reachable": false,
+      "blocked_by": "security group",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-private",
+      "port": 22,
+      "naive": true,
+      "reachable": false,
+      "blocked_by": "no public IP",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-private",
+      "port": 3389,
+      "naive": false,
+      "reachable": false,
+      "blocked_by": "no public IP",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-restricted",
+      "port": 22,
+      "naive": false,
+      "reachable": false,
+      "blocked_by": "security group",
+      "probe": false
+    },
+    {
+      "instance": "cloudsentry-restricted",
+      "port": 3389,
+      "naive": false,
+      "reachable": false,
+      "blocked_by": "security group",
+      "probe": false
+    }
+  ],
+  "scores": {
+    "security group only": {
+      "flagged": 8,
+      "true_positives": 4,
+      "false_positives": 4,
+      "missed": 0
+    },
+    "full path": {
+      "flagged": 4,
+      "true_positives": 4,
+      "false_positives": 0,
+      "missed": 0
+    }
+  }
+}
