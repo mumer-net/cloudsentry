@@ -1,4 +1,4 @@
-"""CloudSentry command line: scan."""
+"""CloudSentry command line: scan and exposure."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 
 import boto3
@@ -13,7 +14,7 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-from cloudsentry import collect_aws, collect_plan, rules
+from cloudsentry import collect_aws, collect_plan, exposure, probe, rules
 from cloudsentry.model import Inventory
 
 console = Console()
@@ -111,7 +112,106 @@ def _add_scan(sub) -> None:
     p.set_defaults(func=run_scan)
 
 
-COMMANDS = [_add_scan]
+def _score(pairs: list[dict], key: str) -> dict[str, int]:
+    flagged = [p for p in pairs if p[key]]
+    return {
+        "flagged": len(flagged),
+        "true_positives": sum(p["probe"] for p in flagged),
+        "false_positives": sum(not p["probe"] for p in flagged),
+        "missed": sum(p["probe"] and not p[key] for p in pairs),
+    }
+
+
+def _probe_answers(inv: Inventory, results: list[exposure.Exposure]) -> dict[tuple[str, int], bool] | None:
+    blocked = [port for port, ok in probe.preflight((22, 3389)).items() if not ok]
+    if blocked:
+        _say(
+            f"This network blocks outbound TCP {', '.join(map(str, blocked))} (tested against portquiz.net). "
+            "Probe from another network, such as a phone hotspot, or blocked ports will look closed.",
+            markdown=False,
+            style="red",
+        )
+        return None
+    ips = {i.id: i.public_ip for i in inv.instances}
+    targets = sorted({(ips[r.instance], r.port) for r in results if ips.get(r.instance)})
+    found = probe.probe(targets)
+    return {(r.instance, r.port): found.get((ips.get(r.instance), r.port), False) for r in results}
+
+
+def _print_exposure(results: list[exposure.Exposure], answers: dict[tuple[str, int], bool]) -> None:
+    columns = ["Instance", "Port", "Group open to world", "Reachable", "Blocked by"]
+    if answers:
+        columns.append("Probe")
+    table = Table()
+    for column in columns:
+        table.add_column(column)
+    yes_no = {True: "yes", False: "no"}
+    for r in results:
+        row = [escape(r.name), str(r.port), yes_no[r.naive], yes_no[r.reachable], r.blocked_by or ""]
+        if answers:
+            probed = answers[(r.instance, r.port)]
+            row.append(yes_no[probed] if probed == r.reachable else f"[red]{yes_no[probed]}[/]")
+        table.add_row(*row)
+    console.print(table)
+
+
+def run_exposure(args) -> int:
+    session = boto3.Session(profile_name=args.profile)
+    tag = tuple(args.tag.split("=", 1)) if args.tag else None
+    inv = collect_aws.collect(session, args.region or session.region_name or "us-east-1", tag)
+    results = exposure.analyze(inv, args.source or probe.my_public_ip())
+
+    answers = {}
+    if args.probe:
+        answers = _probe_answers(inv, results)
+        if answers is None:
+            return 2
+    _print_exposure(results, answers)
+    if not answers:
+        return 0
+
+    pairs = [
+        {
+            "instance": r.name,
+            "port": r.port,
+            "naive": r.naive,
+            "reachable": r.reachable,
+            "blocked_by": r.blocked_by,
+            "probe": answers[(r.instance, r.port)],
+        }
+        for r in results
+    ]
+    scores = {"security group only": _score(pairs, "naive"), "full path": _score(pairs, "reachable")}
+    for name, s in scores.items():
+        _say(
+            f"{name}: flagged {s['flagged']}, confirmed by probe {s['true_positives']}, "
+            f"false positives {s['false_positives']}, missed {s['missed']}",
+            markdown=False,
+        )
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        record = {
+            "measured_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%MZ"),
+            "region": inv.region,
+            "pairs": pairs,
+            "scores": scores,
+        }
+        Path(args.out).write_text(json.dumps(record, indent=2) + "\n")
+    return 0 if scores["full path"]["false_positives"] == scores["full path"]["missed"] == 0 else 1
+
+
+def _add_exposure(sub) -> None:
+    p = sub.add_parser("exposure", help="which instance ports are really reachable from the internet")
+    p.add_argument("--region", help="AWS region (default: your profile's region)")
+    p.add_argument("--tag", help="only VPCs with this tag, for example Project=cloudsentry")
+    p.add_argument("--profile", help="AWS profile to use")
+    p.add_argument("--source", help="source address to evaluate (default: this machine's public IP)")
+    p.add_argument("--probe", action="store_true", help="also try real TCP connections and score both checks")
+    p.add_argument("--out", metavar="FILE", help="with --probe, save the measurement as JSON")
+    p.set_defaults(func=run_exposure)
+
+
+COMMANDS = [_add_scan, _add_exposure]
 
 
 def main(argv: list[str] | None = None) -> int:
