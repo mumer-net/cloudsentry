@@ -4,6 +4,17 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 2s --health-timeout 3s --health-retries 15
+    env:
+      CLOUDSENTRY_TEST_DB: postgresql://postgres:ci@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.2.0
@@ -48,3 +59,22 @@ jobs:
       - name: Every seeded fault is caught before apply
         shell: bash  # enables pipefail, so a missed fault fails the job
         run: uv run cloudsentry scan --plan lab/faults.json --expect --markdown | tee -a "$GITHUB_STEP_SUMMARY"
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build and start the database and API
+        run: docker compose up --build --detach --wait
+      - name: The API answers
+        run: curl --fail --silent --retry 10 --retry-connrefused --retry-delay 1 localhost:8000/health
+      - name: The image runs a plan scan
+        run: >
+          docker compose run --rm -v "$PWD/tests/fixtures:/fixtures:ro" api
+          cloudsentry scan --plan /fixtures/plan-faults.json --expect
+      - name: Stop
+        if: always()
+        run: docker compose down --volumes
